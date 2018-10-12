@@ -200,8 +200,8 @@ public class Escalonamento {
             int creditos;
             
             Map<Integer, List<BCP>> filas = multiplasFilas(qtdFilas);
+            List<BCP> filaBloqueados = new LinkedList<>();
             List<BCP> filaProntos;
-            List<BCP> filaBloqueados;
             
             Iterator<BCP> iterator;
             
@@ -224,10 +224,10 @@ public class Escalonamento {
                     
                     if (creditos > 0) {
                         if (processo.isPronto()) { filas.get(creditos).add(primeiroProcesso, processo); }
-                        else if (processo.isBloqueado()) {  }
-                        else if (processo.isConcluido()) { qtdProcessos--; }
+                        else if (processo.isBloqueado()) { filaBloqueados.add(processo); }
                     }
                     
+                    if (processo.isConcluido()) { qtdProcessos--; }
                     imprimirFilas(filas);
                 }
                 nroFila--;
