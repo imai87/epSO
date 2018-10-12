@@ -144,7 +144,8 @@ public class Escalonamento {
                 PC++;
                 processo.setPC(PC);
                 break;
-            }          
+            }
+            
             if (instrucao.equalsIgnoreCase("SAIDA")) { 
                 processo.setExecutando(false);
                 processo.setConcluido(true);
