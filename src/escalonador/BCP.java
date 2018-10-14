@@ -12,7 +12,8 @@ public class BCP {
     private boolean concluido = false;
     private int prioridade;
     private int creditos;
-    private int PC;
+    private int tempoDeEspera;
+    private int PC = 0;
     private int X = -1;
     private int Y = -1;
 
@@ -78,6 +79,14 @@ public class BCP {
 
     public void setCreditos(int creditos) {
         this.creditos = creditos;
+    }
+
+    public void setTempoDeEspera(int tempoDeEspera) {
+        this.tempoDeEspera = tempoDeEspera;
+    }
+    
+    public int getTempoDeEspera() {
+        return tempoDeEspera;
     }
     
     public int getPC() {
