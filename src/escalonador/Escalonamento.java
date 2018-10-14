@@ -97,35 +97,41 @@ public class Escalonamento {
         System.out.println();
     }
     
-    public void imprimirProcesso(BCP processo) {
-        System.out.println("Nome: " +processo.getNomePrograma());
+    public void imprimirGeral(BCP processo, List<BCP> filaBloqueados) {
+        System.out.println("Executando: " +processo.getNomePrograma());
         System.out.println("PC: " +processo.getPC());
         System.out.println("X: " +processo.getX());
         System.out.println("Y: " +processo.getY());
+        System.out.println("Creditos:" +processo.getCreditos());
+        if (processo.isBloqueado()) System.out.println("Processo bloqueado " +processo.getNomePrograma());
         if (processo.isConcluido()) System.out.println("Fim do processo " +processo.getNomePrograma());
         System.out.println("");
+        System.out.print("Fila de Bloqueados: ");
+        for (BCP p : filaBloqueados) System.out.print("(" +p.getNomePrograma()+ ")[" +p.getCreditos()+ "]");
+        System.out.println("\n");
     }
     
     /*
-    ** Algoritmo de escalonamento utilizado
-    ** em cada classe de prioridades
+    ** Algoritmo de escalonamento utilizado em cada classe de prioridades
     */
     
-    public int roundRobin(BCP processo) {
+    public int roundRobin(BCP processo, int tempoDeEspera) {
         String instrucao;
         String[] registradorGeral;
         double aux;
-        int creditos = 0;
+        int prioridade, creditos;
         int n, PC, valorReg;
         
+        prioridade = processo.getPrioridade();
+        creditos = processo.getCreditos();
+        
         PC = processo.getPC();
-        n = processo.getPrioridade() - processo.getCreditos();
+        n = prioridade - creditos;
         aux = quantum * Math.pow(2, n);
         
         while (aux > 0) {
             instrucao = processo.getRefCodigo().get(PC);
-            //System.out.println(instrucao);
-            
+
             if (instrucao.contains("X=")) {
                 registradorGeral = instrucao.split("=");
                 int valor = registradorGeral.length-1;
@@ -141,6 +147,7 @@ public class Escalonamento {
             if (instrucao.equalsIgnoreCase("E/S")) {
                 processo.setExecutando(false);
                 processo.setBloqueado(true);
+                processo.setTempoDeEspera(tempoDeEspera);
                 PC++;
                 processo.setPC(PC);
                 break;
@@ -149,7 +156,6 @@ public class Escalonamento {
                 processo.setExecutando(false);
                 processo.setConcluido(true);
                 tabelaDeProcessos.remove(processo);
-                //System.out.println("Terminou: " +processo.getNomePrograma());
                 break;
             }
             
@@ -159,43 +165,132 @@ public class Escalonamento {
             aux--;
         }
         if (!processo.isConcluido()) {
-            creditos = processo.getCreditos();
             creditos--;
             processo.setCreditos(creditos);
             
             if (!processo.isBloqueado()) {
                 processo.setExecutando(false);
-                processo.setPronto(true); 
+                processo.setPronto(true);
             }
         }
         return creditos;
     }
     
     /*
-    ** Verifica se todos os processos
-    ** presentes na tabela contem zero
-    ** creditos, visando auxiliar na
-    ** redistribuicao dos mesmos
+    ** Verifica se existem processos
+    ** presentes na tabela. Existindo, verifica-se 
+    ** se TODOS possuem 0 creditos. Alem disso,
+    ** espera-se que nao existam processos bloqueados
     */
     
-    public boolean verificaZeroCreditos() {
-        boolean zeroCreditos = true;
+    public boolean verificaRedistribuicao(int qtdProcessos) {
+        if (qtdProcessos > 0) {
+            boolean existeProcesso = true;
+            boolean zeroCreditos = true;
+            boolean pronto = true;
         
-        for (BCP processo : tabelaDeProcessos)
-            if (processo.getCreditos() > 0) { zeroCreditos = false; }
-
-        return zeroCreditos;
+            for (BCP processo : tabelaDeProcessos) {
+                if (qtdProcessos == 0) { existeProcesso = false; } 
+                if (processo.getCreditos() > 0) { zeroCreditos = false; }
+                if (!processo.isPronto()) { pronto = false; }
+            }
+        
+            return (existeProcesso && zeroCreditos && pronto);
+        }
+        return false;
     }
     
     /*
-    ** Metodo que gerencia o processo
-    ** de escalonamento
+    ** Metodo que gerencia os processos setados
+    ** como bloqueados, verificando o tempo de
+    ** espera e procedendo adequadamente.
+    */
+    
+    public void gerenciaBloqueados(List<BCP> filaBloqueados, Map<Integer, List<BCP>> filas) {
+        if (!filaBloqueados.isEmpty()) {
+            Iterator<BCP> it = filaBloqueados.iterator();
+            
+            BCP processo;
+            int tempoDeEspera, creditos;
+            
+            while (it.hasNext()) {
+                processo = it.next();
+                
+                tempoDeEspera = processo.getTempoDeEspera();
+                tempoDeEspera--;
+                processo.setTempoDeEspera(tempoDeEspera);
+                
+                if (tempoDeEspera == 0) {
+                    it.remove();
+                    
+                    processo.setBloqueado(false);
+                    processo.setPronto(true);
+                    
+                    creditos = processo.getCreditos();
+                    if (creditos > 0) {
+                        filas.get(creditos).add(processo);
+                        System.out.println("Reposicionando " +processo.getNomePrograma() +" em prontos apos exec do processo abaixo\n");
+                    }
+                }
+            }
+        }
+    }
+    
+    /*
+    ** Verificacao de situacoes que envolvem
+    ** as filas de Prontos e Bloqueados: 
+    ** Se existirem processos bloqueados e a
+    ** fila de prontos estiver vazia, devolve true.
+    ** Caso contrario, false.
+    */
+    
+    public boolean verificaProntosEBloqueados(List<BCP> filaBloqueados, Map<Integer, List<BCP>> filas) {
+        if (!filaBloqueados.isEmpty()) {
+            for (int i = 1; i <= filas.size(); i++)
+                if (!filas.get(i).isEmpty()) return false;
+        }
+        return true;
+    } 
+    
+    /*
+    ** Atualizacao de fila de bloqueados no caso de
+    ** existirem processos bloqueados e a fila 
+    ** de prontos estiver vazia:
+    ** Decremento do tempo de espera de cada processo
+    ** ate que se esgote, permitindo, assim, sua execucao
+    */
+    
+    public void atualizaBloqueados(List<BCP> filaBloqueados, Map<Integer, List<BCP>> filas) {
+        int tempoRestante;
+        int creditos;
+        
+        while (!filaBloqueados.isEmpty()) {
+            BCP processo = filaBloqueados.get(0);
+            creditos = processo.getCreditos();
+            tempoRestante = processo.getTempoDeEspera();
+            
+            while (tempoRestante > 0) {
+                tempoRestante--;
+                processo.setTempoDeEspera(tempoRestante);
+            }
+            if (tempoRestante == 0) {
+                processo.setBloqueado(false);
+                processo.setPronto(true);
+                filaBloqueados.remove(processo);
+                if (creditos > 0) { filas.get(creditos).add(processo); }
+            }
+        }
+    }
+    
+    /*
+    ** Metodo que gerencia o processo de escalonamento
     */
     
     public void escalonamento() {
         if (tabelaDeProcessos != null) {
             int qtdFilas = distribuicaoCreditos();
             int qtdProcessos = tabelaDeProcessos.size();
+            int tempoDeEspera = 2;
             int primeiroProcesso = 0;
             int creditos;
             
@@ -207,7 +302,7 @@ public class Escalonamento {
             
             int nroFila = qtdFilas;
             imprimirFilas(filas);
-            while (nroFila > 0) {
+            while (qtdProcessos > 0) {
                 filaProntos = filas.get(nroFila);
                 iterator = filaProntos.iterator();
                 
@@ -218,23 +313,27 @@ public class Escalonamento {
                     processo.setPronto(false);
                     processo.setExecutando(true);
                     
-                    // Round Robin
-                    creditos = roundRobin(processo);
-                    imprimirProcesso(processo);
+                    creditos = roundRobin(processo, tempoDeEspera);
                     
-                    if (creditos > 0) {
-                        if (processo.isPronto()) { filas.get(creditos).add(primeiroProcesso, processo); }
-                        else if (processo.isBloqueado()) { filaBloqueados.add(processo); }
-                    }
-                    
+                    gerenciaBloqueados(filaBloqueados, filas);
+                    iterator = filaProntos.iterator();
+
+                    if ((creditos > 0) && (processo.isPronto())) { filas.get(creditos).add(primeiroProcesso, processo); }
+                    if (processo.isBloqueado()) { filaBloqueados.add(processo); }
                     if (processo.isConcluido()) { qtdProcessos--; }
+                    
+                    imprimirGeral(processo, filaBloqueados);
                     imprimirFilas(filas);
                 }
                 nroFila--;
+                if (nroFila == 0) { nroFila = qtdFilas; }
                 
-                if ((verificaZeroCreditos()) && (qtdProcessos > 0)) {
+                if (verificaProntosEBloqueados(filaBloqueados, filas)) {
+                    atualizaBloqueados(filaBloqueados, filas);
+                }
+                if (verificaRedistribuicao(qtdProcessos)) {
+                    System.out.println("Redistribuindo creditos...\n");
                     redistribuicaoCreditos(filas);
-                    nroFila = qtdFilas;
                 }
             }
         }
