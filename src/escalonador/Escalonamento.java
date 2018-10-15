@@ -97,7 +97,8 @@ public class Escalonamento {
         System.out.println();
     }
     
-    public void imprimirGeral(BCP processo, List<BCP> filaBloqueados) {
+    public void imprimirGeral(BCP processo, List<BCP> filaBloqueados, List<BCP> filaProntosComum) {
+        System.out.println("-------------------------------------------------------------------");
         System.out.println("Executando: " +processo.getNomePrograma());
         System.out.println("PC: " +processo.getPC());
         System.out.println("X: " +processo.getX());
@@ -107,15 +108,19 @@ public class Escalonamento {
         if (processo.isConcluido()) System.out.println("Fim do processo " +processo.getNomePrograma());
         System.out.println("");
         System.out.print("Fila de Bloqueados: ");
-        for (BCP p : filaBloqueados) System.out.print("(" +p.getNomePrograma()+ ")[" +p.getCreditos()+ "]");
+        for (BCP p : filaBloqueados) System.out.print("(" +p.getNomePrograma()+ ")[" +p.getCreditos()+ "][t: " +p.getTempoDeEspera()+ "]");
+        System.out.println();
+        System.out.print("Fila de Prontos Comum: ");
+        for (BCP p : filaProntosComum) System.out.print("(" +p.getNomePrograma()+ ")[" +p.getCreditos()+ "]");
         System.out.println("\n");
+        System.out.println("-------------------------------------------------------------------");
     }
     
     /*
     ** Algoritmo de escalonamento utilizado em cada classe de prioridades
     */
     
-    public int roundRobin(BCP processo, int tempoDeEspera) {
+    public int roundRobin(BCP processo, boolean quantumComum, boolean prontosComum, int tempoDeEspera) {
         String instrucao;
         String[] registradorGeral;
         double aux;
@@ -127,7 +132,8 @@ public class Escalonamento {
         
         PC = processo.getPC();
         n = prioridade - creditos;
-        aux = quantum * Math.pow(2, n);
+        if (quantumComum) { aux = quantum; } 
+        else { aux = quantum * Math.pow(2, n); }
         
         while (aux > 0) {
             instrucao = processo.getRefCodigo().get(PC);
@@ -165,8 +171,10 @@ public class Escalonamento {
             aux--;
         }
         if (!processo.isConcluido()) {
-            creditos--;
-            processo.setCreditos(creditos);
+            if (!prontosComum) {
+                creditos--;
+                processo.setCreditos(creditos);
+            }
             
             if (!processo.isBloqueado()) {
                 processo.setExecutando(false);
@@ -206,7 +214,7 @@ public class Escalonamento {
     ** espera e procedendo adequadamente.
     */
     
-    public void gerenciaBloqueados(List<BCP> filaBloqueados, Map<Integer, List<BCP>> filas) {
+    public void gerenciaBloqueados(List<BCP> filaBloqueados, List<BCP> filaProntosComum, Map<Integer, List<BCP>> filas) {
         if (!filaBloqueados.isEmpty()) {
             Iterator<BCP> it = filaBloqueados.iterator();
             
@@ -231,6 +239,7 @@ public class Escalonamento {
                         filas.get(creditos).add(processo);
                         System.out.println("Reposicionando " +processo.getNomePrograma() +" em prontos apos exec do processo abaixo\n");
                     }
+                    else { filaProntosComum.add(processo); }
                 }
             }
         }
@@ -244,13 +253,38 @@ public class Escalonamento {
     ** Caso contrario, false.
     */
     
-    public boolean verificaProntosEBloqueados(List<BCP> filaBloqueados, Map<Integer, List<BCP>> filas) {
+    public boolean verificaProntosBloqueados(List<BCP> filaBloqueados, Map<Integer, List<BCP>> filas) {
         if (!filaBloqueados.isEmpty()) {
             for (int i = 1; i <= filas.size(); i++)
                 if (!filas.get(i).isEmpty()) return false;
         }
         return true;
     } 
+    
+    /*
+    ** Verificacao para a situacao em que se deve
+    ** decrementar os tempos de espera de todos os
+    ** processos na fila de bloqueados, ate que um
+    ** possa ser rodado
+    */
+    
+    public boolean decrementaBloqueados(List<BCP> filaBloqueados, Map<Integer, List<BCP>> filas, int qtdProcessos) {
+        boolean verificaSituacao = verificaProntosBloqueados(filaBloqueados, filas);
+        boolean verificaTamanho = (filaBloqueados.size() == qtdProcessos); 
+        return (verificaSituacao && verificaTamanho);
+    }
+    
+    /*
+    ** Verifica situacao em que se utiliza a fila
+    ** de prontos comum, ou seja, momento em que
+    ** existem processos bloqueados e todos os demais
+    ** processos encontram-se com zero credito
+    */
+    
+    public boolean utilizaProntosComum(List<BCP> filaBloqueados, List<BCP> filaProntosComum, Map<Integer, List<BCP>> filas) {
+        boolean utiliza = (verificaProntosBloqueados(filaBloqueados, filas) && (!filaProntosComum.isEmpty()));
+        return utiliza;
+    }
     
     /*
     ** Atualizacao de fila de bloqueados no caso de
@@ -260,12 +294,15 @@ public class Escalonamento {
     ** ate que se esgote, permitindo, assim, sua execucao
     */
     
-    public void atualizaBloqueados(List<BCP> filaBloqueados, Map<Integer, List<BCP>> filas) {
+    public void atualizaBloqueados(List<BCP> filaBloqueados, List<BCP> filaProntosComum, Map<Integer, List<BCP>> filas) {
         int tempoRestante;
         int creditos;
+        int primeiroProcesso = 0;
         
-        while (!filaBloqueados.isEmpty()) {
-            BCP processo = filaBloqueados.get(0);
+        boolean liberouProcesso = false;
+        
+        while ((!filaBloqueados.isEmpty()) && (!liberouProcesso)) {
+            BCP processo = filaBloqueados.get(primeiroProcesso);
             creditos = processo.getCreditos();
             tempoRestante = processo.getTempoDeEspera();
             
@@ -278,6 +315,9 @@ public class Escalonamento {
                 processo.setPronto(true);
                 filaBloqueados.remove(processo);
                 if (creditos > 0) { filas.get(creditos).add(processo); }
+                else { filaProntosComum.add(processo); }
+                
+                liberouProcesso = true;
             }
         }
     }
@@ -294,8 +334,12 @@ public class Escalonamento {
             int primeiroProcesso = 0;
             int creditos;
             
+            boolean prontosComum = false;
+            boolean quantumComum = false;
+            
             Map<Integer, List<BCP>> filas = multiplasFilas(qtdFilas);
             List<BCP> filaBloqueados = new LinkedList<>();
+            List<BCP> filaProntosComum = new LinkedList<>();
             List<BCP> filaProntos;
             
             Iterator<BCP> iterator;
@@ -303,7 +347,13 @@ public class Escalonamento {
             int nroFila = qtdFilas;
             imprimirFilas(filas);
             while (qtdProcessos > 0) {
-                filaProntos = filas.get(nroFila);
+                if (utilizaProntosComum(filaBloqueados, filaProntosComum, filas)) { 
+                    filaProntos = filaProntosComum;
+                    prontosComum = true;
+                    quantumComum = true;
+                }
+                else { filaProntos = filas.get(nroFila); }
+                
                 iterator = filaProntos.iterator();
                 
                 while (iterator.hasNext()) {
@@ -313,27 +363,32 @@ public class Escalonamento {
                     processo.setPronto(false);
                     processo.setExecutando(true);
                     
-                    creditos = roundRobin(processo, tempoDeEspera);
-                    
-                    gerenciaBloqueados(filaBloqueados, filas);
+                    creditos = roundRobin(processo, quantumComum, prontosComum, tempoDeEspera);
+                    quantumComum = false;
+                    gerenciaBloqueados(filaBloqueados, filaProntosComum, filas);
                     iterator = filaProntos.iterator();
-
-                    if ((creditos > 0) && (processo.isPronto())) { filas.get(creditos).add(primeiroProcesso, processo); }
+                    
+                    if (processo.isPronto()) {
+                        if (creditos > 0) { filas.get(creditos).add(primeiroProcesso, processo); }
+                        else { filaProntosComum.add(processo); }
+                    }
                     if (processo.isBloqueado()) { filaBloqueados.add(processo); }
                     if (processo.isConcluido()) { qtdProcessos--; }
                     
-                    imprimirGeral(processo, filaBloqueados);
+                    imprimirGeral(processo, filaBloqueados, filaProntosComum);
                     imprimirFilas(filas);
+                    if ((filaBloqueados.isEmpty()) && (prontosComum)) { break; }
                 }
                 nroFila--;
-                if (nroFila == 0) { nroFila = qtdFilas; }
+                if ((nroFila == 0) || (prontosComum)) { nroFila = qtdFilas; prontosComum = false; }
                 
-                if (verificaProntosEBloqueados(filaBloqueados, filas)) {
-                    atualizaBloqueados(filaBloqueados, filas);
+                if (decrementaBloqueados(filaBloqueados, filas, qtdProcessos)) {
+                    atualizaBloqueados(filaBloqueados, filaProntosComum, filas);
                 }
                 if (verificaRedistribuicao(qtdProcessos)) {
                     System.out.println("Redistribuindo creditos...\n");
                     redistribuicaoCreditos(filas);
+                    filaProntosComum.clear();
                 }
             }
         }
