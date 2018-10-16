@@ -1,6 +1,7 @@
 package escalonador;
 
 import java.util.*;
+import java.io.*;
 
 public class Escalonamento {
     
@@ -10,6 +11,33 @@ public class Escalonamento {
     public Escalonamento(List<BCP> tabelaDeProcessos, int quantum) {
         this.tabelaDeProcessos = tabelaDeProcessos;
         this.quantum = quantum;
+    }
+    
+    /*
+    **
+    */
+   
+    public void carregamentoDeProcessos(PrintWriter logFile, Map<Integer, List<BCP>> filas) {
+        int nroFila = filas.size();
+        List<BCP> filaProntos;
+            
+        while (nroFila > 0) {
+            filaProntos = filas.get(nroFila);
+            for (BCP processo : filaProntos) { 
+                String carregamento = "Carregando " + processo.getNomePrograma() + "%n";
+                logFile.printf(carregamento);
+            }
+            nroFila--;
+        }
+    }
+    
+    /*
+    **
+    */
+    
+    public void executandoProcesso(PrintWriter logFile, BCP processo) {
+        String executando = "Executando " + processo.getNomePrograma() + "%n";
+        logFile.printf(executando);
     }
     
     /* 
@@ -322,7 +350,7 @@ public class Escalonamento {
     ** Metodo que gerencia o processo de escalonamento
     */
     
-    public void escalonamento() {
+    public void escalonamento(PrintWriter logFile) {
         if (tabelaDeProcessos != null) {
             int qtdFilas = distribuicaoCreditos();
             int qtdProcessos = tabelaDeProcessos.size();
@@ -334,6 +362,8 @@ public class Escalonamento {
             boolean quantumComum = false;
             
             Map<Integer, List<BCP>> filas = multiplasFilas(qtdFilas);
+            carregamentoDeProcessos(logFile, filas);
+            
             List<BCP> filaBloqueados = new LinkedList<>();
             List<BCP> filaProntosComum = new LinkedList<>();
             List<BCP> filaProntos;
@@ -342,6 +372,7 @@ public class Escalonamento {
             
             int nroFila = qtdFilas;
             imprimirFilas(filas);
+            
             while (qtdProcessos > 0) {
                 if (utilizaProntosComum(filaBloqueados, filaProntosComum, filas)) { 
                     filaProntos = filaProntosComum;
@@ -358,6 +389,7 @@ public class Escalonamento {
                     
                     processo.setPronto(false);
                     processo.setExecutando(true);
+                    executandoProcesso(logFile, processo);
                     
                     creditos = roundRobin(processo, quantumComum, prontosComum, tempoDeEspera);
                     quantumComum = false;

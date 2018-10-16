@@ -1,10 +1,7 @@
 package escalonador;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.io.*;
 
 public class Escalonador {
 
@@ -22,8 +19,7 @@ public class Escalonador {
         int prioridade;
         int quantum = -1;
         
-        try {
-            
+        try {  
             // Leitura de arquivos relacionados aos processos
             
             FileReader arq;
@@ -72,8 +68,28 @@ public class Escalonador {
         catch(IOException e) {
             System.err.printf("Erro na abertura do arquivo: %s.\n", e.getMessage());
         }
- 
+        
         Escalonamento esc = new Escalonamento(tabelaDeProcessos, quantum);
-        esc.escalonamento();  
+        String log = "log";
+        String valorQuantum = Integer.toString(quantum); 
+        if (valorQuantum.length() == 1) { valorQuantum = "0" + valorQuantum; }
+        String pontoTXT = ".txt";
+        
+        String nomeArq = log + valorQuantum + pontoTXT;
+        
+        try {
+            FileWriter arqLog = new FileWriter(nomeArq);
+            PrintWriter gravarLog = new PrintWriter(arqLog);
+            
+            esc.escalonamento(gravarLog);
+            
+            arqLog.close();
+        }
+        catch(IOException e) {
+            e.printStackTrace();
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+        }     
     }    
 }
