@@ -14,8 +14,8 @@ public class BCP {
     private int creditos;
     private int tempoDeEspera;
     private int PC = 0;
-    private int X = -1;
-    private int Y = -1;
+    private int X = 0;
+    private int Y = 0;
 
     public String getNomePrograma() {
         return nomePrograma;

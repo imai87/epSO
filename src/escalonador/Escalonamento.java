@@ -40,6 +40,67 @@ public class Escalonamento {
         logFile.printf(executando);
     }
     
+    /*
+    **
+    */
+    
+    public void iniciandoEntradaSaida(PrintWriter logFile, BCP processo) {
+        String entradaSaida = "E/S iniciada em " + processo.getNomePrograma() + "%n";
+        logFile.printf(entradaSaida);
+    }
+    
+    /*
+    **
+    */
+    
+    public void interrompendoProcesso(PrintWriter logFile, BCP processo, int nInstrucoes) {
+        String interrompendo = "Interrompendo " + processo.getNomePrograma();
+        String numInstrucoes = " apos " + nInstrucoes + " instrucao(oes)%n";   
+        logFile.printf(interrompendo+numInstrucoes);
+    }
+    
+    /*
+    **
+    */
+   
+    public void terminandoProcesso(PrintWriter logFile, BCP processo) {
+        String nomeProcesso = processo.getNomePrograma();
+        String terminado = " terminado.";
+        String regX = " [X=" + processo.getX() + "]";
+        String regY = " [Y=" + processo.getY() + "]%n";
+        logFile.printf(nomeProcesso+terminado+regX+regY);
+    }
+    
+    /*
+    **
+    */
+    
+    public void quantumUtilizado(PrintWriter logFile) {
+        String sQuantum = "QUANTUM: ";
+        String valorQuantum = Integer.toString(quantum);
+        logFile.printf(sQuantum+valorQuantum);
+    }
+    
+    /*
+    **
+    */
+    
+    public void mediaTrocas(PrintWriter logFile, int nTrocas, int numProcessos) {
+        String mediaTrocas = "MEDIA DE TROCAS: ";
+        String valorMedia = Double.toString(nTrocas/numProcessos) + "%n";
+        logFile.printf(mediaTrocas+valorMedia);
+    }
+    
+    /*
+    **
+    */
+    
+    public void mediaInstrucoes(PrintWriter logFile, int numInstrucoes) {
+        String mediaInstrucoes = "MEDIA DE INSTRUCOES: ";
+        String valorMedia = Double.toString(numInstrucoes/quantum) + "%n";
+        logFile.printf(mediaInstrucoes+valorMedia);
+    }
+    
     /* 
     ** Distribuicao de creditos de mesmo valor
     ** que a prioridade de cada processo e
@@ -149,8 +210,9 @@ public class Escalonamento {
         String[] registradorGeral;
         double aux;
         int prioridade, creditos;
-        int n, PC, valorReg;
+        int n, PC, valorReg, numInstrucoes;
         
+        numInstrucoes = 0;
         prioridade = processo.getPrioridade();
         creditos = processo.getCreditos();
         
@@ -161,7 +223,8 @@ public class Escalonamento {
         
         while (aux > 0) {
             instrucao = processo.getRefCodigo().get(PC);
-
+            numInstrucoes++;
+            
             if (instrucao.contains("X=")) {
                 registradorGeral = instrucao.split("=");
                 int valor = registradorGeral.length-1;
@@ -205,7 +268,7 @@ public class Escalonamento {
                 processo.setPronto(true);
             }
         }
-        return creditos;
+        return numInstrucoes;
     }
     
     /*
@@ -357,6 +420,10 @@ public class Escalonamento {
             int tempoDeEspera = 2;
             int primeiroProcesso = 0;
             int creditos;
+            int numInstrucoes;
+            int numInstrucoesTotal = 0;
+            int trocas = 0;
+            int numProcessos = qtdProcessos;
             
             boolean prontosComum = false;
             boolean quantumComum = false;
@@ -391,20 +458,37 @@ public class Escalonamento {
                     processo.setExecutando(true);
                     executandoProcesso(logFile, processo);
                     
-                    creditos = roundRobin(processo, quantumComum, prontosComum, tempoDeEspera);
+                    numInstrucoes = roundRobin(processo, quantumComum, prontosComum, tempoDeEspera);
+                    numInstrucoesTotal += numInstrucoes; 
                     quantumComum = false;
+                    
                     gerenciaBloqueados(filaBloqueados, filaProntosComum, filas);
                     iterator = filaProntos.iterator();
+                    
+                    creditos = processo.getCreditos();
                     
                     if (processo.isPronto()) {
                         if (creditos > 0) { filas.get(creditos).add(primeiroProcesso, processo); }
                         else { filaProntosComum.add(processo); }
                     }
-                    if (processo.isBloqueado()) { filaBloqueados.add(processo); }
-                    if (processo.isConcluido()) { qtdProcessos--; }
+                    
+                    if (processo.isBloqueado()) { 
+                        filaBloqueados.add(processo); 
+                        iniciandoEntradaSaida(logFile, processo);
+                    }
+                    
+                    interrompendoProcesso(logFile, processo, numInstrucoes);
+                    
+                    if (processo.isConcluido()) { 
+                        qtdProcessos--; 
+                        terminandoProcesso(logFile, processo);
+                    }
                     
                     imprimirGeral(processo, filaBloqueados, filaProntosComum);
                     imprimirFilas(filas);
+                    
+                    trocas++;
+                    
                     if ((filaBloqueados.isEmpty()) && (prontosComum)) { break; }
                 }
                 nroFila--;
@@ -419,6 +503,9 @@ public class Escalonamento {
                     filaProntosComum.clear();
                 }
             }
+            mediaTrocas(logFile, trocas, numProcessos);
+            mediaInstrucoes(logFile, numInstrucoesTotal);
+            quantumUtilizado(logFile);
         }
     }
 }
