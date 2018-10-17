@@ -134,5 +134,4 @@ Executando TESTE-1
 Interrompendo TESTE-1 apos 1 instrucao(oes)
 TESTE-1 terminado. [X=2] [Y=10]
 MEDIA DE TROCAS: 4.0
-MEDIA DE INSTRUCOES: 46.0
 QUANTUM: 3

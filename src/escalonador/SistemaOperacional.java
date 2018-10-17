@@ -113,7 +113,7 @@ public class SistemaOperacional {
             // escalonador em si e pela gravacao das informacoes necessarias
             // ao logfile
             
-            Escalonamento esc = new Escalonamento(tabelaDeProcessos, quantum);
+            Escalonador esc = new Escalonador(tabelaDeProcessos, quantum);
             esc.escalonamento(gravarLog);
             
             arqLog.close();
