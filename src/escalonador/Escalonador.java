@@ -14,7 +14,7 @@ public class Escalonador {
     }
     
     /*
-    **
+    ** Atualizacao do logfile: inicializacao (carregamento) de um processo
     */
    
     public void carregamentoDeProcessos(PrintWriter logFile, Map<Integer, List<BCP>> filas) {
@@ -32,7 +32,7 @@ public class Escalonador {
     }
     
     /*
-    **
+    ** Atualizacao do logfile: execucao de um processo
     */
     
     public void executandoProcesso(PrintWriter logFile, BCP processo) {
@@ -41,7 +41,19 @@ public class Escalonador {
     }
     
     /*
-    **
+    ** Atualizacao do logfile: processo interrompido (bloqueio de E/S, fim do quantum,
+    ** ou termino natural do processo), incluindo-se o numero de instrucoes realizadas
+    ** ate seu interrompimento
+    */
+    
+    public void interrompendoProcesso(PrintWriter logFile, BCP processo, int nInstrucoes) {
+        String interrompendo = "Interrompendo " + processo.getNomePrograma();
+        String numInstrucoes = " apos " + nInstrucoes + " instrucao(oes)%n";   
+        logFile.printf(interrompendo+numInstrucoes);
+    }
+     
+    /*
+    ** Atualizacao do logfile: processo interrompido devido a uma E/S
     */
     
     public void iniciandoEntradaSaida(PrintWriter logFile, BCP processo) {
@@ -50,17 +62,7 @@ public class Escalonador {
     }
     
     /*
-    **
-    */
-    
-    public void interrompendoProcesso(PrintWriter logFile, BCP processo, int nInstrucoes) {
-        String interrompendo = "Interrompendo " + processo.getNomePrograma();
-        String numInstrucoes = " apos " + nInstrucoes + " instrucao(oes)%n";   
-        logFile.printf(interrompendo+numInstrucoes);
-    }
-    
-    /*
-    **
+    ** Atualizacao do logfile: processo interrompido devido ao seu termino natural
     */
    
     public void terminandoProcesso(PrintWriter logFile, BCP processo) {
@@ -72,7 +74,7 @@ public class Escalonador {
     }
     
     /*
-    **
+    ** Atualizacao do logfile: inclusao do valor de quantum definido
     */
     
     public void quantumUtilizado(PrintWriter logFile) {
@@ -82,7 +84,8 @@ public class Escalonador {
     }
     
     /*
-    **
+    ** Atualizacao do logfile: Insercao do numero medio de trocas de processo,
+    ** por processo
     */
     
     public void mediaTrocas(PrintWriter logFile, int nTrocas, int numProcessos) {
@@ -92,7 +95,8 @@ public class Escalonador {
     }
     
     /*
-    **
+    ** Atualizacao do logfile: Insercao do numero medio de instrucoes executadas
+    ** por grupo de n_com (quantum)
     */
     
     public void mediaInstrucoes(PrintWriter logFile, int numInstrucoes) {
@@ -102,10 +106,8 @@ public class Escalonador {
     }
     
     /* 
-    ** Distribuicao de creditos de mesmo valor
-    ** que a prioridade de cada processo e
-    ** determinacao da quantidade de filas a
-    ** serem criadas 
+    ** Distribuicao de creditos de mesmo valor que a prioridade de cada processo e
+    ** determinacao da quantidade de filas a serem criadas 
     */
     
     public int distribuicaoCreditos() {
@@ -121,27 +123,8 @@ public class Escalonador {
         return qtdFilas;
     }
     
-    /*
-    ** Os processos encontram-se com
-    ** zero creditos, entao ocorre a
-    ** redistribuicao de acordo com
-    ** suas prioridades
-    */
-    
-    public void redistribuicaoCreditos(Map<Integer, List<BCP>> filas) {
-        int creditos;
-        
-        for (BCP processo : tabelaDeProcessos) {
-            creditos = processo.getPrioridade();
-            processo.setCreditos(creditos);
-            filas.get(creditos).add(processo);
-        }
-        imprimirFilas(filas);
-    }
-    
     /* 
-    ** Criacao de multiplas filas, de acordo com
-    ** o numero de creditos (do maior para o menor)
+    ** Criacao de multiplas filas, de acordo com o numero de creditos (do maior para o menor)
     */
     
     public Map<Integer, List<BCP>> multiplasFilas(int qtdFilas) {
@@ -162,9 +145,7 @@ public class Escalonador {
     
     /*
     ** Funcoes utilizadas para testes:
-    ** imprimir o estado dos processos
-    ** prontos e informacoes gerais sobre
-    ** um dado processo
+    ** Imprimir o estado dos processos prontos e informacoes gerais sobre um dado processo
     */
     
     public void imprimirFilas(Map < Integer, List<BCP> > filas) {
@@ -200,9 +181,151 @@ public class Escalonador {
         System.out.println("\n");
         System.out.println("-------------------------------------------------------------------");
     }
+        
+    /*
+    ** Verifica se existem processos presentes na tabela. Existindo, verifica-se 
+    ** se TODOS possuem 0 creditos. Alem disso, espera-se que nao existam processos bloqueados
+    */
+    
+    public boolean verificaRedistribuicao(int qtdProcessos) {
+        if (qtdProcessos > 0) {
+            boolean existeProcesso = true;
+            boolean zeroCreditos = true;
+            boolean pronto = true;
+        
+            for (BCP processo : tabelaDeProcessos) {
+                if (qtdProcessos == 0) { existeProcesso = false; } 
+                if (processo.getCreditos() > 0) { zeroCreditos = false; }
+                if (!processo.isPronto()) { pronto = false; }
+            }
+        
+            return (existeProcesso && zeroCreditos && pronto);
+        }
+        return false;
+    }
     
     /*
-    ** Algoritmo de escalonamento utilizado em cada classe de prioridades
+    ** Os processos encontram-se com zero creditos, entao ocorre a redistribuicao 
+    ** de acordo com suas prioridades
+    */
+    
+    public void redistribuicaoCreditos(Map<Integer, List<BCP>> filas) {
+        int creditos;
+        
+        for (BCP processo : tabelaDeProcessos) {
+            creditos = processo.getPrioridade();
+            processo.setCreditos(creditos);
+            filas.get(creditos).add(processo);
+        }
+        imprimirFilas(filas);
+    }
+    
+    /*
+    ** Verificacao de situacoes que envolvem as filas de Prontos e Bloqueados: 
+    ** Se existirem processos bloqueados e a fila de prontos estiver vazia, devolve true.
+    ** Caso contrario, false.
+    */
+    
+    public boolean verificaProntosBloqueados(List<BCP> filaBloqueados, Map<Integer, List<BCP>> filas) {
+        if (!filaBloqueados.isEmpty()) {
+            for (int i = 1; i <= filas.size(); i++)
+                if (!filas.get(i).isEmpty()) return false;
+        }
+        return true;
+    } 
+    
+    /*
+    ** Verificacao para a situacao em que se deve decrementar os tempos de espera de todos os
+    ** processos na fila de bloqueados, ate que um possa ser rodado
+    */
+    
+    public boolean decrementaBloqueados(List<BCP> filaBloqueados, Map<Integer, List<BCP>> filas, int qtdProcessos) {
+        boolean verificaSituacao = verificaProntosBloqueados(filaBloqueados, filas);
+        boolean verificaTamanho = (filaBloqueados.size() == qtdProcessos); 
+        return (verificaSituacao && verificaTamanho);
+    }
+    
+    /*
+    ** Atualizacao de fila de bloqueados no caso de existirem processos bloqueados e a fila de prontos estiver vazia:
+    ** Decremento do tempo de espera de cada processo ate que se esgote, permitindo, assim, sua execucao
+    */
+    
+    public void atualizaBloqueados(List<BCP> filaBloqueados, List<BCP> filaProntosComum, Map<Integer, List<BCP>> filas) {
+        int tempoRestante;
+        int creditos;
+        int primeiroProcesso = 0;
+        
+        boolean liberouProcesso = false;
+        
+        while ((!filaBloqueados.isEmpty()) && (!liberouProcesso)) {
+            BCP processo = filaBloqueados.get(primeiroProcesso);
+            creditos = processo.getCreditos();
+            tempoRestante = processo.getTempoDeEspera();
+            
+            while (tempoRestante > 0) {
+                tempoRestante--;
+                processo.setTempoDeEspera(tempoRestante);
+            }
+            if (tempoRestante == 0) {
+                processo.setBloqueado(false);
+                processo.setPronto(true);
+                filaBloqueados.remove(processo);
+                if (creditos > 0) { filas.get(creditos).add(processo); }
+                else { filaProntosComum.add(processo); }
+                
+                liberouProcesso = true;
+            }
+        }
+    }
+    
+    /*
+    ** Metodo que gerencia os processos setados como bloqueados, verificando o tempo de espera e procedendo adequadamente
+    */
+    
+    public void gerenciaBloqueados(List<BCP> filaBloqueados, List<BCP> filaProntosComum, Map<Integer, List<BCP>> filas) {
+        if (!filaBloqueados.isEmpty()) {
+            Iterator<BCP> it = filaBloqueados.iterator();
+            
+            BCP processo;
+            int tempoDeEspera, creditos;
+            
+            while (it.hasNext()) {
+                processo = it.next();
+                
+                tempoDeEspera = processo.getTempoDeEspera();
+                tempoDeEspera--;
+                processo.setTempoDeEspera(tempoDeEspera);
+                
+                if (tempoDeEspera == 0) {
+                    it.remove();
+                    
+                    processo.setBloqueado(false);
+                    processo.setPronto(true);
+                    
+                    creditos = processo.getCreditos();
+                    if (creditos > 0) {
+                        filas.get(creditos).add(processo);
+                        System.out.println("Reposicionando " +processo.getNomePrograma() +" em prontos apos exec do processo abaixo\n");
+                    }
+                    else { filaProntosComum.add(processo); }
+                }
+            }
+        }
+    }
+    
+    /*
+    ** Verifica situacao em que se utiliza a fila de prontos comum, ou seja, momento em que existem processos bloqueados 
+    ** e todos os demais processos encontram-se com zero credito
+    */
+    
+    public boolean utilizaProntosComum(List<BCP> filaBloqueados, List<BCP> filaProntosComum, Map<Integer, List<BCP>> filas) {
+        boolean utiliza = (verificaProntosBloqueados(filaBloqueados, filas) && (!filaProntosComum.isEmpty()));
+        return utiliza;
+    }
+    
+    /*
+    ** Execucao do processo: leitura das instrucoes do programa, atualizando seu estado,
+    ** numero de creditos e registradores (PC, X e Y)
     */
     
     public int execucaoDoProcesso(BCP processo, boolean prontosComum, int tempoDeEspera) {
@@ -271,152 +394,28 @@ public class Escalonador {
     }
     
     /*
-    ** Verifica se existem processos
-    ** presentes na tabela. Existindo, verifica-se 
-    ** se TODOS possuem 0 creditos. Alem disso,
-    ** espera-se que nao existam processos bloqueados
-    */
-    
-    public boolean verificaRedistribuicao(int qtdProcessos) {
-        if (qtdProcessos > 0) {
-            boolean existeProcesso = true;
-            boolean zeroCreditos = true;
-            boolean pronto = true;
-        
-            for (BCP processo : tabelaDeProcessos) {
-                if (qtdProcessos == 0) { existeProcesso = false; } 
-                if (processo.getCreditos() > 0) { zeroCreditos = false; }
-                if (!processo.isPronto()) { pronto = false; }
-            }
-        
-            return (existeProcesso && zeroCreditos && pronto);
-        }
-        return false;
-    }
-    
-    /*
-    ** Metodo que gerencia os processos setados
-    ** como bloqueados, verificando o tempo de
-    ** espera e procedendo adequadamente.
-    */
-    
-    public void gerenciaBloqueados(List<BCP> filaBloqueados, List<BCP> filaProntosComum, Map<Integer, List<BCP>> filas) {
-        if (!filaBloqueados.isEmpty()) {
-            Iterator<BCP> it = filaBloqueados.iterator();
-            
-            BCP processo;
-            int tempoDeEspera, creditos;
-            
-            while (it.hasNext()) {
-                processo = it.next();
-                
-                tempoDeEspera = processo.getTempoDeEspera();
-                tempoDeEspera--;
-                processo.setTempoDeEspera(tempoDeEspera);
-                
-                if (tempoDeEspera == 0) {
-                    it.remove();
-                    
-                    processo.setBloqueado(false);
-                    processo.setPronto(true);
-                    
-                    creditos = processo.getCreditos();
-                    if (creditos > 0) {
-                        filas.get(creditos).add(processo);
-                        System.out.println("Reposicionando " +processo.getNomePrograma() +" em prontos apos exec do processo abaixo\n");
-                    }
-                    else { filaProntosComum.add(processo); }
-                }
-            }
-        }
-    }
-    
-    /*
-    ** Verificacao de situacoes que envolvem
-    ** as filas de Prontos e Bloqueados: 
-    ** Se existirem processos bloqueados e a
-    ** fila de prontos estiver vazia, devolve true.
-    ** Caso contrario, false.
-    */
-    
-    public boolean verificaProntosBloqueados(List<BCP> filaBloqueados, Map<Integer, List<BCP>> filas) {
-        if (!filaBloqueados.isEmpty()) {
-            for (int i = 1; i <= filas.size(); i++)
-                if (!filas.get(i).isEmpty()) return false;
-        }
-        return true;
-    } 
-    
-    /*
-    ** Verificacao para a situacao em que se deve
-    ** decrementar os tempos de espera de todos os
-    ** processos na fila de bloqueados, ate que um
-    ** possa ser rodado
-    */
-    
-    public boolean decrementaBloqueados(List<BCP> filaBloqueados, Map<Integer, List<BCP>> filas, int qtdProcessos) {
-        boolean verificaSituacao = verificaProntosBloqueados(filaBloqueados, filas);
-        boolean verificaTamanho = (filaBloqueados.size() == qtdProcessos); 
-        return (verificaSituacao && verificaTamanho);
-    }
-    
-    /*
-    ** Verifica situacao em que se utiliza a fila
-    ** de prontos comum, ou seja, momento em que
-    ** existem processos bloqueados e todos os demais
-    ** processos encontram-se com zero credito
-    */
-    
-    public boolean utilizaProntosComum(List<BCP> filaBloqueados, List<BCP> filaProntosComum, Map<Integer, List<BCP>> filas) {
-        boolean utiliza = (verificaProntosBloqueados(filaBloqueados, filas) && (!filaProntosComum.isEmpty()));
-        return utiliza;
-    }
-    
-    /*
-    ** Atualizacao de fila de bloqueados no caso de
-    ** existirem processos bloqueados e a fila 
-    ** de prontos estiver vazia:
-    ** Decremento do tempo de espera de cada processo
-    ** ate que se esgote, permitindo, assim, sua execucao
-    */
-    
-    public void atualizaBloqueados(List<BCP> filaBloqueados, List<BCP> filaProntosComum, Map<Integer, List<BCP>> filas) {
-        int tempoRestante;
-        int creditos;
-        int primeiroProcesso = 0;
-        
-        boolean liberouProcesso = false;
-        
-        while ((!filaBloqueados.isEmpty()) && (!liberouProcesso)) {
-            BCP processo = filaBloqueados.get(primeiroProcesso);
-            creditos = processo.getCreditos();
-            tempoRestante = processo.getTempoDeEspera();
-            
-            while (tempoRestante > 0) {
-                tempoRestante--;
-                processo.setTempoDeEspera(tempoRestante);
-            }
-            if (tempoRestante == 0) {
-                processo.setBloqueado(false);
-                processo.setPronto(true);
-                filaBloqueados.remove(processo);
-                if (creditos > 0) { filas.get(creditos).add(processo); }
-                else { filaProntosComum.add(processo); }
-                
-                liberouProcesso = true;
-            }
-        }
-    }
-    
-    /*
-    ** Metodo que gerencia o processo de escalonamento
+    ** Implementacao do algoritmo de prioridades especificado
     */
     
     public void escalonamento(PrintWriter logFile) {
         if (tabelaDeProcessos != null) {
+            
+            // Distribuicao de creditos, a cada processo,
+            // igual a sua prioridade e definicao do nro
+            // de filas a serem criadas
             int qtdFilas = distribuicaoCreditos();
+            
+            // Criacao de multiplas filas, de acordo com o numero de
+            // creditos (do maior para o menor)
+            Map<Integer, List<BCP>> filas = multiplasFilas(qtdFilas);
+            
+            // Carregamento dos processos no logfile
+            carregamentoDeProcessos(logFile, filas);
+            
+            // Quantidade inicial de processos
             int qtdProcessos = tabelaDeProcessos.size();
             
+            // Variaveis auxiliares para o escalonamento
             int creditos, tempoDeEspera, primeiroProcesso, numInstrucoes, trocas, numProcessos;
             
             tempoDeEspera = 2;
@@ -426,10 +425,11 @@ public class Escalonador {
             
             boolean prontosComum = false;
             
-            Map<Integer, List<BCP>> filas = multiplasFilas(qtdFilas);
-            carregamentoDeProcessos(logFile, filas);
-            
+            // Lista de processos bloqueados
             List<BCP> filaBloqueados = new LinkedList<>();
+            
+            // Listas de processos prontos:
+            // Comum e ordenada por prioridades, respectivamente
             List<BCP> filaProntosComum = new LinkedList<>();
             List<BCP> filaProntos;
             
@@ -438,7 +438,12 @@ public class Escalonador {
             int nroFila = qtdFilas;
             imprimirFilas(filas);
             
+            // Aplicacao do algoritmo 
+            // Round-Robin em cada fila
+            // definida (processos prontos)
             while (qtdProcessos > 0) {
+                
+                // Definicao da fila de prontos a ser utilizada
                 if (utilizaProntosComum(filaBloqueados, filaProntosComum, filas)) { 
                     filaProntos = filaProntosComum;
                     prontosComum = true;
@@ -447,14 +452,21 @@ public class Escalonador {
                 
                 iterator = filaProntos.iterator();
                 
+                // Tratamento dos processos
+                // a partir da fila de prontos
+                // definida anteriormente
                 while (iterator.hasNext()) {
                     BCP processo = iterator.next();
                     iterator.remove();
                     
+                    // Execucao do processo
                     processo.setPronto(false);
                     processo.setExecutando(true);
                     
+                    // Leitura das instrucoes do programa em execucao e tratamento adequado
                     numInstrucoes = execucaoDoProcesso(processo, prontosComum, tempoDeEspera);
+                    
+                    // Registro da execucao no logfile
                     executandoProcesso(logFile, processo);
                     
                     gerenciaBloqueados(filaBloqueados, filaProntosComum, filas);
