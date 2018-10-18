@@ -4,18 +4,23 @@ import java.util.List;
 
 public class BCP {
     
-    private String nomePrograma;
-    private List<String> refCodigo;
+    private String nomePrograma;            // Nome do programa
+    private List<String> refCodigo;         // Referencia a reg. da memoria em que esta o codigo do programa
+    
+    // Estado do processo
     private boolean executando = false;
     private boolean pronto = true;
     private boolean bloqueado = false;
-    private boolean concluido = false;
-    private int prioridade;
-    private int creditos;
+    
+    private boolean concluido = false;      // Flag para definicao da conclusao do processo
+    
+    private int prioridade;                 // Prioridade do processo
+    private int creditos;                   // Credito do processo
     private int tempoDeEspera;
-    private int PC = 0;
-    private int X = 0;
-    private int Y = 0;
+    
+    private int PC = 0;                     // Contador de Programa
+    private int X = 0;                      // Estado do registrador atual X
+    private int Y = 0;                      // Estado do registrador atual Y
 
     public String getNomePrograma() {
         return nomePrograma;

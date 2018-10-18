@@ -133,5 +133,6 @@ TESTE-6 terminado. [X=8] [Y=5]
 Executando TESTE-1
 Interrompendo TESTE-1 apos 1 instrucao(oes)
 TESTE-1 terminado. [X=2] [Y=10]
-MEDIA DE TROCAS: 4.0
+MEDIA DE TROCAS: 4.6
+MEDIA DE INSTRUCOES: 0.3333333333333333
 QUANTUM: 3

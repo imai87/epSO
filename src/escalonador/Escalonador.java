@@ -46,9 +46,10 @@ public class Escalonador {
     ** ate seu interrompimento
     */
     
-    public void interrompendoProcesso(PrintWriter logFile, BCP processo, int nInstrucoes) {
+    public void interrompendoProcesso(PrintWriter logFile, BCP processo, double n_instrucoes) {
         String interrompendo = "Interrompendo " + processo.getNomePrograma();
-        String numInstrucoes = " apos " + nInstrucoes + " instrucao(oes)%n";   
+        int num_instrucoes = (int) n_instrucoes;
+        String numInstrucoes = " apos " + num_instrucoes + " instrucao(oes)%n";   
         logFile.printf(interrompendo+numInstrucoes);
     }
      
@@ -74,6 +75,22 @@ public class Escalonador {
     }
     
     /*
+    ** Atualizacao do logfile: 
+    ** Insercao do numero medio de trocas de processo, por processo;
+    ** Insercao do numero medio de instrucoes executadas por grupo de n_com (quantum)
+    */
+    
+    public void estatisticas(PrintWriter logFile, double n_trocas, double n_processos, double n_instrucoes) {
+        String mediaTrocas = "MEDIA DE TROCAS: ";
+        String valorMedia = Double.toString(n_trocas/n_processos) + "%n";
+        logFile.printf(mediaTrocas+valorMedia);
+        
+        String mediaInstrucoes = "MEDIA DE INSTRUCOES: ";
+        valorMedia = Double.toString(n_instrucoes/quantum) + "%n";
+        logFile.printf(mediaInstrucoes+valorMedia);
+    }
+    
+    /*
     ** Atualizacao do logfile: inclusao do valor de quantum definido
     */
     
@@ -82,29 +99,7 @@ public class Escalonador {
         String valorQuantum = Integer.toString(quantum);
         logFile.printf(sQuantum+valorQuantum);
     }
-    
-    /*
-    ** Atualizacao do logfile: Insercao do numero medio de trocas de processo,
-    ** por processo
-    */
-    
-    public void mediaTrocas(PrintWriter logFile, int nTrocas, int numProcessos) {
-        String mediaTrocas = "MEDIA DE TROCAS: ";
-        String valorMedia = Double.toString(nTrocas/numProcessos) + "%n";
-        logFile.printf(mediaTrocas+valorMedia);
-    }
-    
-    /*
-    ** Atualizacao do logfile: Insercao do numero medio de instrucoes executadas
-    ** por grupo de n_com (quantum)
-    */
-    
-    public void mediaInstrucoes(PrintWriter logFile, int numInstrucoes) {
-        String mediaInstrucoes = "MEDIA DE INSTRUCOES: ";
-        String valorMedia = Double.toString(numInstrucoes/quantum) + "%n";
-        logFile.printf(mediaInstrucoes+valorMedia);
-    }
-    
+     
     /* 
     ** Distribuicao de creditos de mesmo valor que a prioridade de cada processo e
     ** determinacao da quantidade de filas a serem criadas 
@@ -124,7 +119,8 @@ public class Escalonador {
     }
     
     /* 
-    ** Criacao de multiplas filas, de acordo com o numero de creditos (do maior para o menor)
+    ** Criacao de multiplas filas, de acordo com o numero de creditos (do maior para o menor):
+    ** Utilizacao de HashMap, relacionando a prioridade e a lista de processos correspondente.
     */
     
     public Map<Integer, List<BCP>> multiplasFilas(int qtdFilas) {
@@ -239,7 +235,7 @@ public class Escalonador {
     ** processos na fila de bloqueados, ate que um possa ser rodado
     */
     
-    public boolean decrementaBloqueados(List<BCP> filaBloqueados, Map<Integer, List<BCP>> filas, int qtdProcessos) {
+    public boolean verificaDecrementacao(List<BCP> filaBloqueados, Map<Integer, List<BCP>> filas, int qtdProcessos) {
         boolean verificaSituacao = verificaProntosBloqueados(filaBloqueados, filas);
         boolean verificaTamanho = (filaBloqueados.size() == qtdProcessos); 
         return (verificaSituacao && verificaTamanho);
@@ -250,22 +246,33 @@ public class Escalonador {
     ** Decremento do tempo de espera de cada processo ate que se esgote, permitindo, assim, sua execucao
     */
     
-    public void atualizaBloqueados(List<BCP> filaBloqueados, List<BCP> filaProntosComum, Map<Integer, List<BCP>> filas) {
-        int tempoRestante;
-        int creditos;
-        int primeiroProcesso = 0;
+    public void decrementaBloqueados(List<BCP> filaBloqueados, List<BCP> filaProntosComum, Map<Integer, List<BCP>> filas) {
+        // Variaveis auxliares
+        int tempoRestante, creditos, primeiroProcesso;
         
-        boolean liberouProcesso = false;
+        // Flag para determinar se um processo foi liberado
+        boolean liberouProcesso;
+        
+        // Inicializacao
+        primeiroProcesso = 0;
+        liberouProcesso = false;
+        
+        // Procedimento de decremento do tempo de espera de processos bloqueados
         
         while ((!filaBloqueados.isEmpty()) && (!liberouProcesso)) {
             BCP processo = filaBloqueados.get(primeiroProcesso);
             creditos = processo.getCreditos();
             tempoRestante = processo.getTempoDeEspera();
             
+            // Decremento do tempo de espera
+            
             while (tempoRestante > 0) {
                 tempoRestante--;
                 processo.setTempoDeEspera(tempoRestante);
             }
+            
+            // Ao zerar o tempo de espera, adiciona-se o processo a fila de prontos adequada
+            
             if (tempoRestante == 0) {
                 processo.setBloqueado(false);
                 processo.setPronto(true);
@@ -286,8 +293,10 @@ public class Escalonador {
         if (!filaBloqueados.isEmpty()) {
             Iterator<BCP> it = filaBloqueados.iterator();
             
-            BCP processo;
-            int tempoDeEspera, creditos;
+            BCP processo;                   // Processo bloqueado
+            int tempoDeEspera, creditos;    // Variaveis auxiliares
+            
+            // Decremento do tempo de espera de um processo bloqueado
             
             while (it.hasNext()) {
                 processo = it.next();
@@ -295,6 +304,9 @@ public class Escalonador {
                 tempoDeEspera = processo.getTempoDeEspera();
                 tempoDeEspera--;
                 processo.setTempoDeEspera(tempoDeEspera);
+                
+                // Ao zerar o tempo de espera, remove-se o processo da fila de bloqueados
+                // reinserindo-o na fila de prontos adequada
                 
                 if (tempoDeEspera == 0) {
                     it.remove();
@@ -325,60 +337,77 @@ public class Escalonador {
     
     /*
     ** Execucao do processo: leitura das instrucoes do programa, atualizando seu estado,
-    ** numero de creditos e registradores (PC, X e Y)
+    ** numero de creditos e registradores (PC, X e Y), alem de devolver o num. de instrucoes
+    ** executadas
     */
     
-    public int execucaoDoProcesso(BCP processo, boolean prontosComum, int tempoDeEspera) {
-        String instrucao;
-        String[] registradorGeral;
-        double aux;
-        int prioridade, creditos;
-        int n, PC, valorReg, numInstrucoes;
+    public double execucaoDoProcesso(BCP processo, boolean prontosComum, int tempoDeEspera, double n_instrucoes) {
+        String instrucao;           // String que armazena a instrucao lia
+        String[] registradorGeral;  // Vetor auxiliar na obtencao dos valores dos reg. gerais
         
-        numInstrucoes = 0;
+        double n_com;                                 // Variavel que armazena o num. de instrucoes a serem lidas
+        int prioridade, creditos, n, PC, valorReg;    // Variaveis auxiliares a execucao do programa  
+        boolean interrompimento;                      // Flag para definicao dos momentos em que a exec. deve ser interrompida
+        
+        n_instrucoes = 0;           // Armazena o numero de instruçoes executadas
+        
+        // Definicao dos valores associados a cada variavel
+        
         prioridade = processo.getPrioridade();
         creditos = processo.getCreditos();
-        
         PC = processo.getPC();
-        n = prioridade - creditos;
-        aux = quantum * Math.pow(2, n);
         
-        while (aux > 0) {
+        n = prioridade - creditos;
+        n_com = quantum * Math.pow(2, n);
+        interrompimento = false;
+        
+        // Execucao das instrucoes
+        
+        while ((n_com > 0) && (!interrompimento)) {
             instrucao = processo.getRefCodigo().get(PC);
-            numInstrucoes++;
             
+            // Atribuicao de valor ao reg. geral X
             if (instrucao.contains("X=")) {
                 registradorGeral = instrucao.split("=");
                 int valor = registradorGeral.length-1;
                 valorReg = Integer.parseInt(registradorGeral[valor]);
                 processo.setX(valorReg);
             }
+            
+            // Atribuicao de valor ao reg. geral Y
             if (instrucao.contains("Y=")) {
                 registradorGeral = instrucao.split("=");
                 int valor = registradorGeral.length-1;
                 valorReg = Integer.parseInt(registradorGeral[valor]);
                 processo.setY(valorReg);
             }
+            
+            // Leitura de instrucao de E/S
             if (instrucao.equalsIgnoreCase("E/S")) {
                 processo.setExecutando(false);
                 processo.setBloqueado(true);
                 processo.setTempoDeEspera(tempoDeEspera);
-                PC++;
-                processo.setPC(PC);
-                break;
-            }          
+                interrompimento = true;
+            }
+            
+            // Leitura de instrucao que indica o termino do programa
             if (instrucao.equalsIgnoreCase("SAIDA")) { 
                 processo.setExecutando(false);
                 processo.setConcluido(true);
-                tabelaDeProcessos.remove(processo);
-                break;
+                interrompimento = true;
             }
             
+            // Atualizacao de variaveis
+            
             PC++;
+            n_instrucoes++;
             processo.setPC(PC);
             
-            aux--;
+            n_com--;
         }
+        
+        // Definicao de estado e creditos de processos nao concluidos (terminados)
+        
         if (!processo.isConcluido()) {
             if (!prontosComum) {
                 creditos--;
@@ -390,7 +419,7 @@ public class Escalonador {
                 processo.setPronto(true);
             }
         }
-        return numInstrucoes;
+        return n_instrucoes;
     }
     
     /*
@@ -416,14 +445,18 @@ public class Escalonador {
             int qtdProcessos = tabelaDeProcessos.size();
             
             // Variaveis auxiliares para o escalonamento
-            int creditos, tempoDeEspera, primeiroProcesso, numInstrucoes, trocas, numProcessos;
+            int nroFila, creditos, tempoDeEspera, primeiroProcesso;
             
+            // Variaveis auxiliares para as estatisticas
+            double n_trocas, n_processos, n_instrucoes;
+            
+            // Inicializacao de variaveis
+            nroFila = qtdFilas;
             tempoDeEspera = 2;
             primeiroProcesso = 0;
-            trocas = 0;
-            numProcessos = qtdProcessos;
-            
-            boolean prontosComum = false;
+            n_trocas = 0;
+            n_instrucoes = 0;
+            n_processos = qtdProcessos;
             
             // Lista de processos bloqueados
             List<BCP> filaBloqueados = new LinkedList<>();
@@ -432,15 +465,17 @@ public class Escalonador {
             // Comum e ordenada por prioridades, respectivamente
             List<BCP> filaProntosComum = new LinkedList<>();
             List<BCP> filaProntos;
+           
+            // Flag para demarcar o uso da fila de prontos comum
+            boolean prontosComum = false;
             
-            Iterator<BCP> iterator;
-            
-            int nroFila = qtdFilas;
             imprimirFilas(filas);
             
             // Aplicacao do algoritmo 
             // Round-Robin em cada fila
             // definida (processos prontos)
+            
+            Iterator<BCP> iterator;
             while (qtdProcessos > 0) {
                 
                 // Definicao da fila de prontos a ser utilizada
@@ -450,11 +485,11 @@ public class Escalonador {
                 }
                 else { filaProntos = filas.get(nroFila); }
                 
-                iterator = filaProntos.iterator();
-                
                 // Tratamento dos processos
                 // a partir da fila de prontos
                 // definida anteriormente
+                
+                iterator = filaProntos.iterator();
                 while (iterator.hasNext()) {
                     BCP processo = iterator.next();
                     iterator.remove();
@@ -464,54 +499,74 @@ public class Escalonador {
                     processo.setExecutando(true);
                     
                     // Leitura das instrucoes do programa em execucao e tratamento adequado
-                    numInstrucoes = execucaoDoProcesso(processo, prontosComum, tempoDeEspera);
+                    n_instrucoes = execucaoDoProcesso(processo, prontosComum, tempoDeEspera, n_instrucoes);
                     
                     // Registro da execucao no logfile
                     executandoProcesso(logFile, processo);
                     
+                    // Gerenciamento da fila de bloqueados: Atualizacao do tempo de espera
                     gerenciaBloqueados(filaBloqueados, filaProntosComum, filas);
                     iterator = filaProntos.iterator();
                     
-                    creditos = processo.getCreditos();
+                    // Tratamento adequado ao estado do processo apos sua execucao
                     
+                    // Processo PRONTO: 
+                    // Posicionando-o na fila de prontos
                     if (processo.isPronto()) {
+                        creditos = processo.getCreditos();
                         if (creditos > 0) { filas.get(creditos).add(primeiroProcesso, processo); }
                         else { filaProntosComum.add(processo); }
                     }
                     
+                    // Processo BLOQUEADO:
+                    // Posicionando-o na fila de bloqueados
                     if (processo.isBloqueado()) { 
-                        filaBloqueados.add(processo); 
+                        filaBloqueados.add(processo);
+                        // Registro do bloqueio no logfile
                         iniciandoEntradaSaida(logFile, processo);
                     }
                     
-                    interrompendoProcesso(logFile, processo, numInstrucoes);
+                    // Registro do interrompimento no logfile
+                    interrompendoProcesso(logFile, processo, n_instrucoes);
                     
+                    // Processo TERMINADO:
+                    // Removendo-o da tabela de processos
                     if (processo.isConcluido()) { 
+                        tabelaDeProcessos.remove(processo);
                         qtdProcessos--; 
+                        // Registro do termino no logfile
                         terminandoProcesso(logFile, processo);
                     }
+                    
+                    n_trocas++;     // Numero de vezes que o processo deixa de ser executado
                     
                     imprimirGeral(processo, filaBloqueados, filaProntosComum);
                     imprimirFilas(filas);
                     
-                    trocas++;
-                    
+                    // Demarca o fim da execucao da fila de prontos comum, caso esteja em vigor
                     if ((filaBloqueados.isEmpty()) && (prontosComum)) { break; }
                 }
+                
                 nroFila--;
                 if ((nroFila == 0) || (prontosComum)) { nroFila = qtdFilas; prontosComum = false; }
                 
-                if (decrementaBloqueados(filaBloqueados, filas, qtdProcessos)) {
-                    atualizaBloqueados(filaBloqueados, filaProntosComum, filas);
+                // Decremento do tempo de espera de cada processo ate que se esgote, permitindo, assim, sua execucao
+                if (verificaDecrementacao(filaBloqueados, filas, qtdProcessos)) { 
+                    decrementaBloqueados(filaBloqueados, filaProntosComum, filas);
                 }
+                
+                // Redistribuicao de acordo com a prioridade de cada processo
                 if (verificaRedistribuicao(qtdProcessos)) {
                     System.out.println("Redistribuindo creditos...\n");
                     redistribuicaoCreditos(filas);
                     filaProntosComum.clear();
                 }
             }
-            mediaTrocas(logFile, trocas, numProcessos);
-            //mediaInstrucoes(logFile, numInstrucoesTotal);
+            
+            // Registro das estatisticas no logfile
+            estatisticas(logFile, n_trocas, n_processos, n_instrucoes);
+            
+            // Registro do quantum utilizado no logfile
             quantumUtilizado(logFile);
         }
     }
