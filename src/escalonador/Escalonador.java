@@ -80,13 +80,13 @@ public class Escalonador {
     ** Insercao do numero medio de instrucoes executadas por grupo de n_com (quantum)
     */
     
-    public void estatisticas(PrintWriter logFile, double n_trocas, double n_processos, double n_instrucoes) {
+    public void estatisticas(PrintWriter logFile, double n_trocas, double n_processos, double n_instrucoes, double n_executados) {
         String mediaTrocas = "MEDIA DE TROCAS: ";
         String valorMedia = Double.toString(n_trocas/n_processos) + "%n";
         logFile.printf(mediaTrocas+valorMedia);
         
         String mediaInstrucoes = "MEDIA DE INSTRUCOES: ";
-        valorMedia = Double.toString(n_instrucoes/quantum) + "%n";
+        valorMedia = Double.toString(n_instrucoes/n_executados) + "%n";
         logFile.printf(mediaInstrucoes+valorMedia);
     }
     
@@ -413,7 +413,6 @@ public class Escalonador {
                 creditos--;
                 processo.setCreditos(creditos);
             }
-            
             if (!processo.isBloqueado()) {
                 processo.setExecutando(false);
                 processo.setPronto(true);
@@ -448,15 +447,17 @@ public class Escalonador {
             int nroFila, creditos, tempoDeEspera, primeiroProcesso;
             
             // Variaveis auxiliares para as estatisticas
-            double n_trocas, n_processos, n_instrucoes;
+            double n_trocas, n_processos, n_instrucoes, n_instrucoesTotal, n_processosExec;
             
             // Inicializacao de variaveis
             nroFila = qtdFilas;
             tempoDeEspera = 2;
             primeiroProcesso = 0;
             n_trocas = 0;
-            n_instrucoes = 0;
             n_processos = qtdProcessos;
+            n_instrucoes = 0;
+            n_instrucoesTotal = 0;
+            n_processosExec = 0;
             
             // Lista de processos bloqueados
             List<BCP> filaBloqueados = new LinkedList<>();
@@ -500,13 +501,15 @@ public class Escalonador {
                     
                     // Leitura das instrucoes do programa em execucao e tratamento adequado
                     n_instrucoes = execucaoDoProcesso(processo, prontosComum, tempoDeEspera, n_instrucoes);
+                    n_instrucoesTotal += n_instrucoes;
+                    n_processosExec++;
                     
                     // Registro da execucao no logfile
                     executandoProcesso(logFile, processo);
                     
                     // Gerenciamento da fila de bloqueados: Atualizacao do tempo de espera
                     gerenciaBloqueados(filaBloqueados, filaProntosComum, filas);
-                    iterator = filaProntos.iterator();
+                    //iterator = filaProntos.iterator();
                     
                     // Tratamento adequado ao estado do processo apos sua execucao
                     
@@ -540,6 +543,8 @@ public class Escalonador {
                     
                     n_trocas++;     // Numero de vezes que o processo deixa de ser executado
                     
+                    iterator = filaProntos.iterator();
+                    
                     imprimirGeral(processo, filaBloqueados, filaProntosComum);
                     imprimirFilas(filas);
                     
@@ -564,7 +569,7 @@ public class Escalonador {
             }
             
             // Registro das estatisticas no logfile
-            estatisticas(logFile, n_trocas, n_processos, n_instrucoes);
+            estatisticas(logFile, n_trocas, n_processos, n_instrucoesTotal, n_processosExec);
             
             // Registro do quantum utilizado no logfile
             quantumUtilizado(logFile);
